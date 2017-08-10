@@ -5,14 +5,15 @@ const {
     entryPoint,
     setOutput,
     sourceMaps,
-    addPlugins
-} = require('@webpack-blocks/webpack2');
-const devServer = require('@webpack-blocks/dev-server2');
-const postcss = require('@webpack-blocks/postcss');
-const sass = require('@webpack-blocks/sass');
-const typescript = require('@webpack-blocks/typescript');
+    addPlugins,
+    devServer,
+    postcss,
+    sass,
+    typescript,
+    extractText,
+    customConfig
+} = require('webpack-blocks');
 const tslint = require('@webpack-blocks/tslint');
-const extractText = require('@webpack-blocks/extract-text2');
 const autoprefixer = require('autoprefixer');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -22,14 +23,17 @@ const CleanWebpackPlugin = require('clean-webpack-plugin');
 const path = require('path');
 const fs = require('fs');
 
+const appPath = (...names) => path.join(process.cwd(), ...names);
+const userConfig = require(appPath('webpack.config.js'));
+
 const preprocessor = production => ({
     PRODUCTION: production,
     DEVELOPMENT: !production
 });
 
-const ifdef = (opts, block) => context => {
-    let conf = block(context);
-    conf.module.loaders[0].loaders.push(
+const ifdef = (opts, block) => (context, utils) => prevConfig => {
+    let conf = block(context, utils)(prevConfig);
+    conf.module.rules[0].use.push(
         `ifdef-loader?json=${JSON.stringify(opts)}`
     );
     return conf;
@@ -44,20 +48,8 @@ const tsIfDef = production =>
         })
     );
 
-const appPath = (...names) => path.join(process.cwd(), ...names);
-
-const customConfig = fs.existsSync(appPath('webpack.config.js'))
-    ? require(appPath('webpack.config.js'))
-    : {};
-
-if (customConfig === undefined) {
-    throw new Error(
-        'The 3.0 update is a breaking release, you need to upgrade manually. Please refer to https://github.com/cyclejs-community/create-cycle-app-flavors#migrating'
-    );
-}
-
 module.exports = createConfig([
-    () => customConfig, //Include user config
+    customConfig(userConfig), //Include user config
     tslint(),
     sass(),
     postcss([autoprefixer({ browsers: ['last 2 versions'] })]),
